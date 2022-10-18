@@ -11,17 +11,19 @@ import {
 
 function App() {
   const fetchPlaces = (long, lat) => {
-    const url = `${process.env.REACT_APP_END_POINT}${long},${lat}.json?types=address&access_token=${process.env.REACT_APP_API_KEY}`;
-    console.log(url);
-    const places = fetch(url)
+    const reverseGeo = `${process.env.REACT_APP_END_POINT}${long},${lat}.json?types=address&access_token=${process.env.REACT_APP_API_KEY}`;
+    const places = fetch(reverseGeo)
       .then((response) => response.json())
       .then((data) => data);
     return places;
   };
 
+  const [timer, setTimer] = useState(null);
+  const [search, setSearch] = useState("");
+  const [dataList, setDataList] = useState([]);
   const [location, setLocation] = useState(null);
   const [selectPosition, setSelectPosition] = useState(null);
-  const [initPosition, setInitPosition] = useState({ lat: 60.25, lng: 24.94 });
+  const initPosition = { lat: 60.25, lng: 24.94 };
 
   const isSelected = selectPosition !== null;
   const headerOne = isSelected
@@ -30,7 +32,7 @@ function App() {
       ).slice(0, 5)}`
     : "select a place";
 
-  function LocationMarker() {
+  const LocationMarker = () => {
     const map = useMapEvents({
       click: async (e) => {
         const places = await fetchPlaces(e.latlng.lng, e.latlng.lat);
@@ -48,11 +50,46 @@ function App() {
         <Popup>{location}</Popup>
       </Marker>
     ) : null;
-  }
+  };
+
+  const searchAddress = (input) => {
+    const searchApi = `${process.env.REACT_APP_END_POINT}${input}.json?types=address&access_token=${process.env.REACT_APP_API_KEY}`;
+    fetch(searchApi)
+      .then((response) => response.json())
+      .then((data) => setDataList(data.features));
+  };
+
+  const inputChanged = (e) => {
+    setSearch(e.target.value);
+    clearTimeout(timer);
+    const newTimer = setTimeout(() => {
+      e.target.value.length > 0
+        ? searchAddress(e.target.value)
+        : setDataList([]);
+    }, 1000);
+    setTimer(newTimer);
+  };
 
   return (
     <div className="App">
       <h1>{headerOne}</h1>
+      <div>
+        <label htmlFor="search">Or search: </label>
+        <input
+          autoComplete="off"
+          name="search"
+          type="search"
+          value={search}
+          onChange={inputChanged}
+          list="places"
+        />
+        <datalist id="places">
+          {dataList.map((place) => (
+            <option value={place.place_name} key={place.id} />
+          ))}
+        </datalist>
+      </div>
+      <br />
       <MapContainer
         id="map"
         center={initPosition}
