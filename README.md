@@ -1,5 +1,7 @@
 # Getting Started with Create React App
 
+simple app to discover capabilities of leafleft in conjunction with parsing coordinates from the map to an api, retrieving a location object.
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
