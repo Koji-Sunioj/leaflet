@@ -1,1 +1,5 @@
 #map { height: 500px;width: 500px; }
+
+.noArrow::-webkit-calendar-picker-indicator {
+    display:none !important;
+  }

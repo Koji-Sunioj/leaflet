@@ -10,14 +10,6 @@ import {
 } from "react-leaflet";
 
 function App() {
-  const fetchPlaces = (long, lat) => {
-    const reverseGeo = `${process.env.REACT_APP_END_POINT}${long},${lat}.json?types=address&access_token=${process.env.REACT_APP_API_KEY}`;
-    const places = fetch(reverseGeo)
-      .then((response) => response.json())
-      .then((data) => data);
-    return places;
-  };
-
   const [timer, setTimer] = useState(null);
   const [search, setSearch] = useState("");
   const [dataList, setDataList] = useState([]);
@@ -32,6 +24,14 @@ function App() {
       ).slice(0, 5)}`
     : "select a place";
 
+  const fetchPlaces = (long, lat) => {
+    const reverseGeo = `${process.env.REACT_APP_END_POINT}${long},${lat}.json?types=address&access_token=${process.env.REACT_APP_API_KEY}`;
+    const places = fetch(reverseGeo)
+      .then((response) => response.json())
+      .then((data) => data);
+    return places;
+  };
+
   const LocationMarker = () => {
     const map = useMapEvents({
       click: async (e) => {
@@ -43,7 +43,7 @@ function App() {
         map.flyTo(e.latlng, 10);
       },
     });
-    !isSelected && map.flyTo(initPosition, 10);
+    !isSelected ? map.flyTo(initPosition, 10) : map.flyTo(selectPosition, 10);
 
     return isSelected ? (
       <Marker position={selectPosition}>
@@ -53,21 +53,45 @@ function App() {
   };
 
   const searchAddress = (input) => {
-    const searchApi = `${process.env.REACT_APP_END_POINT}${input}.json?types=address&access_token=${process.env.REACT_APP_API_KEY}`;
+    console.log("endpoint hit");
+    const searchApi = `${process.env.REACT_APP_END_POINT}${input}.json?&autocomplete=true&country=fi&types=address&access_token=${process.env.REACT_APP_API_KEY}`;
     fetch(searchApi)
       .then((response) => response.json())
       .then((data) => setDataList(data.features));
   };
 
   const inputChanged = (e) => {
-    setSearch(e.target.value);
-    clearTimeout(timer);
-    const newTimer = setTimeout(() => {
-      e.target.value.length > 0
-        ? searchAddress(e.target.value)
-        : setDataList([]);
-    }, 1000);
-    setTimer(newTimer);
+    const {
+      target: { value: searchInput },
+    } = e;
+    setSearch(searchInput);
+    const inputAction = "inputType" in e.nativeEvent ? "typed" : "selected";
+
+    switch (inputAction) {
+      case "typed": {
+        clearTimeout(timer);
+        const refined = searchInput.trim();
+        const shouldFetch = refined.length > 0 && refined !== search;
+        const newTimer = setTimeout(() => {
+          shouldFetch && searchAddress(refined);
+        }, 1000);
+        setTimer(newTimer);
+        break;
+      }
+      case "selected": {
+        const coords = searchInput.split(", ");
+        const shouldFlyTo =
+          coords.every((coord) => typeof Number(coord)) && coords.length > 1;
+        shouldFlyTo &&
+          (() => {
+            const place = dataList.find(
+              (place) => place.center.join(", ") === searchInput
+            );
+            setSelectPosition({ lat: place.center[1], lng: place.center[0] });
+            setLocation(place.place_name);
+          })();
+      }
+    }
   };
 
   return (
@@ -76,16 +100,21 @@ function App() {
       <div>
         <label htmlFor="search">Or search: </label>
         <input
+          className="noArrow"
+          value={search}
           autoComplete="off"
           name="search"
           type="search"
-          value={search}
           onChange={inputChanged}
           list="places"
         />
         <datalist id="places">
           {dataList.map((place) => (
-            <option value={place.place_name} key={place.id} />
+            <option
+              value={place.geometry.coordinates.join(", ")}
+              label={place.place_name}
+              key={place.id}
+            />
           ))}
         </datalist>
       </div>
